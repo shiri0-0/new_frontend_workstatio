@@ -29,8 +29,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["user"],   // sirf admin allowed
     default: "user"
-  }
-
+  },
+createdAt: { type: Date, default: Date.now }
 
 }, { timestamps: true });
 

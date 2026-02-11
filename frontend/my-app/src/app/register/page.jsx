@@ -59,6 +59,9 @@ export default function AuthForm() {
       }
       
       localStorage.setItem('token', data.token);
+       localStorage.setItem('userId', data.userId);        // ✅ Add this
+    localStorage.setItem('username', data.username); 
+
       setMessage('Login successful! Redirecting...');
       
       setTimeout(() => {

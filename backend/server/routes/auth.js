@@ -1,5 +1,3 @@
-
-// export default router;
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -12,13 +10,11 @@ const router = express.Router();
 const generateOTP = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
 
-
 // ================= REGISTER =================
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validate input
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -37,7 +33,7 @@ router.post("/register", async (req, res) => {
       password: hashedPassword,
       otp,
       otpExpiry: Date.now() + 10 * 60 * 1000,
-      verified: false // Explicitly set to false
+      verified: false
     });
 
     await sendEmail(email, otp);
@@ -48,7 +44,6 @@ router.post("/register", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // ================= VERIFY OTP =================
 router.post("/verify-otp", async (req, res) => {
@@ -80,7 +75,6 @@ router.post("/verify-otp", async (req, res) => {
   }
 });
 
-
 // ================= LOGIN =================
 router.post("/login", async (req, res) => {
   try {
@@ -105,18 +99,22 @@ router.post("/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user._id },
+      { userId: user._id }, // Changed from 'id' to 'userId'
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "7d" }
     );
 
-    res.json({ token, message: "Login successful" });
+    res.json({ 
+      token, 
+      userId: user._id, // Added userId
+      name: user.name, // Added username
+      message: "Login successful" 
+    });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // ================= FORGOT PASSWORD =================
 router.post("/forgot-password", async (req, res) => {
@@ -146,7 +144,6 @@ router.post("/forgot-password", async (req, res) => {
   }
 });
 
-
 // ================= RESET PASSWORD =================
 router.post("/reset-password", async (req, res) => {
   try {
@@ -158,7 +155,6 @@ router.post("/reset-password", async (req, res) => {
 
     const user = await User.findOne({ email });
     
-    // FIX: Add null check here
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -180,56 +176,3 @@ router.post("/reset-password", async (req, res) => {
 });
 
 export default router;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
