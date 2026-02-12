@@ -25,6 +25,89 @@ const io = new Server(httpServer, {
     credentials: true
   }
 });
+/* ================= SOCKET.IO ================= */
+
+const onlineUsers = new Map(); // userId -> socketId
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  /* JOIN ROOM */
+  socket.on("join-room", (roomId) => {
+    socket.join(roomId);
+    console.log(`User joined room: ${roomId}`);
+  });
+
+  /* SEND MESSAGE */
+  socket.on("send-message", (data) => {
+    socket.broadcast.to(data.roomId).emit("new-message", data);
+  });
+
+  /* =========================================
+     ✅ USER ONLINE
+  ==========================================*/
+  socket.on("user-online", ({ userId, roomId }) => {
+    onlineUsers.set(userId, socket.id);
+
+    socket.to(roomId).emit("user-status-change", {
+      userId,
+      status: "online"
+    });
+  });
+
+  /* =========================================
+     ✅ TYPING START
+  ==========================================*/
+  socket.on("typing-start", ({ roomId, userId, userName }) => {
+    socket.to(roomId).emit("user-typing", {
+      userId,
+      userName
+    });
+  });
+
+  /* =========================================
+     ✅ TYPING STOP
+  ==========================================*/
+  socket.on("typing-stop", ({ roomId, userId }) => {
+    socket.to(roomId).emit("user-stopped-typing", {
+      userId
+    });
+  });
+
+  /* =========================================
+     ✅ MESSAGE READ
+  ==========================================*/
+  socket.on("message-read", ({ roomId, messageId, userId }) => {
+    socket.to(roomId).emit("message-read-update", {
+      messageId,
+      userId
+    });
+  });
+
+  /* =========================================
+     ✅ DISCONNECT → OFFLINE
+  ==========================================*/
+  socket.on("disconnect", () => {
+    let disconnectedUser = null;
+
+    for (const [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        disconnectedUser = userId;
+        onlineUsers.delete(userId);
+        break;
+      }
+    }
+
+    if (disconnectedUser) {
+      io.emit("user-status-change", {
+        userId: disconnectedUser,
+        status: "offline"
+      });
+    }
+
+    console.log("User disconnected:", socket.id);
+  });
+});
 
 /* ✅ CORS */
 app.use(cors({
