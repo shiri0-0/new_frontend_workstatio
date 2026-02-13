@@ -25,16 +25,16 @@ export default function Sidebar() {
           {open && "Home"}
         </Link>
 
-        <Link href="/notes" className="block px-4 py-2 hover:bg-gray-800">
+        <Link href="/notepad" className="block px-4 py-2 hover:bg-gray-800">
           {open && "All Notes"}
         </Link>
 
-        <Link href="/room" className="block px-4 py-2 hover:bg-gray-800">
+        <Link href="/msg" className="block px-4 py-2 hover:bg-gray-800">
           {open && "Make Room"}
         </Link>
 
-        <Link href="/info" className="block px-4 py-2 hover:bg-gray-800">
-          {open && "Info"}
+        <Link href="/file" className="block px-4 py-2 hover:bg-gray-800">
+          {open && "file"}
         </Link>
 
         <Link href="/register" className="block px-4 py-2 hover:bg-gray-800">

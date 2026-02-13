@@ -2,84 +2,91 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-export default function CreateRoom({ onClose, onCreated }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'public',
-    maxMembers: 10
-  });
+export default function CreateRoom({ type, onClose, onCreated }) {
+  const [name, setName] = useState('');
+  const [maxMembers, setMaxMembers] = useState(10);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleMaxMembersChange = (e) => {
+    const value = e.target.value;
+    if (value === '') {
+      setMaxMembers('');
+    } else {
+      const num = parseInt(value);
+      setMaxMembers(isNaN(num) ? 10 : num);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      alert('Please enter a room name');
+      return;
+    }
+
+    const membersCount = maxMembers === '' ? 10 : maxMembers;
+
+    if (membersCount < 2) {
+      alert('Maximum members must be at least 2');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5001/api/rooms/create', formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.post(
+        'http://localhost:5001/api/rooms/create',
+        { name, type, maxMembers: membersCount },
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
       onCreated();
       onClose();
     } catch (error) {
-      console.error(error);
+      alert(error.response?.data?.message || 'Failed to create room');
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-4">Create New Room</h2>
+      <div className="bg-white rounded-lg p-6 w-96">
+        <h2 className="text-xl font-bold mb-4">
+          Create {type === 'private' ? 'Private' : 'Public'} Room
+        </h2>
         
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Room Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full border rounded-lg px-4 py-2"
-              required
-            />
-          </div>
+        <input
+          type="text"
+          placeholder="Room Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full border border-gray-300 rounded px-4 py-2 mb-4"
+        />
+        
+        <input
+          type="number"
+          placeholder="Max Members (default: 10)"
+          value={maxMembers}
+          onChange={handleMaxMembersChange}
+          min="2"
+          className="w-full border border-gray-300 rounded px-4 py-2 mb-4"
+        />
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Type</label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({...formData, type: e.target.value})}
-              className="w-full border rounded-lg px-4 py-2"
-            >
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-            </select>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Max Members</label>
-            <input
-              type="number"
-              value={formData.maxMembers}
-              onChange={(e) => setFormData({...formData, maxMembers: e.target.value})}
-              min="2"
-              max="10"
-              className="w-full border rounded-lg px-4 py-2"
-            />
-          </div>
-
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
-            >
-              Create Room
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-300 py-2 rounded-lg hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+        {type === 'private' && (
+          <p className="text-sm text-gray-600 mb-4">
+            You can create up to 10 private rooms. An invite code will be generated.
+          </p>
+        )}
+        
+        <div className="flex gap-2">
+          <button
+            onClick={handleCreate}
+            className="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+          >
+            Create
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );
