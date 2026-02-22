@@ -276,7 +276,7 @@ export default function HomePage() {
             <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
-            <h1 className="text-xl font-bold text-slate-800">Workspace</h1>
+            <h1 className="text-xl font-bold text-slate-800">ShareVault</h1>
           </div>
           
           {isAuthenticated ? (
@@ -315,7 +315,7 @@ export default function HomePage() {
           ) : (
             <div className="flex gap-2">
               <button
-                onClick={() => window.location.href = '/login'}
+                onClick={() => window.location.href = '/register'}
                 className="px-4 py-2 text-slate-700 hover:text-slate-900 font-medium transition-colors"
               >
                 Login

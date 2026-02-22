@@ -1,307 +1,301 @@
 'use client';
 import { useState, useEffect } from 'react';
 
+// ── Inline SVG Icons ──────────────────────────────────────────────────────────
+const Icons = {
+  Upload: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  ),
+  Download: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+  ),
+  Trash: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+    </svg>
+  ),
+  Folder: () => (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+    </svg>
+  ),
+  Storage: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+    </svg>
+  ),
+  Files: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+    </svg>
+  ),
+  CloudUp: () => (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
+    </svg>
+  ),
+};
+
+// File type → icon emoji map
+const fileIcon = (mime) => {
+  if (mime.startsWith('image/'))          return { icon:'🖼️', color:'#f59e0b', bg:'#fef3c7' };
+  if (mime.startsWith('video/'))          return { icon:'🎬', color:'#ef4444', bg:'#fee2e2' };
+  if (mime.startsWith('audio/'))          return { icon:'🎵', color:'#8b5cf6', bg:'#ede9fe' };
+  if (mime.includes('pdf'))               return { icon:'📄', color:'#ef4444', bg:'#fee2e2' };
+  if (mime.includes('word')||mime.includes('document')) return { icon:'📝', color:'#3b82f6', bg:'#dbeafe' };
+  if (mime.includes('sheet')||mime.includes('excel'))   return { icon:'📊', color:'#10b981', bg:'#d1fae5' };
+  if (mime.includes('zip')||mime.includes('rar'))       return { icon:'📦', color:'#f59e0b', bg:'#fef3c7' };
+  return { icon:'📁', color:'#64748b', bg:'#f1f5f9' };
+};
+
+const fmtSize = (b) => {
+  if (b === 0) return '0 B';
+  const k = 1024, s = ['B','KB','MB','GB'], i = Math.floor(Math.log(b)/Math.log(k));
+  return (b/Math.pow(k,i)).toFixed(1)+' '+s[i];
+};
+
 export default function FileUpload() {
-  const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [files, setFiles]         = useState([]);
+  const [loading, setLoading]     = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
+  const [drag, setDrag]           = useState(false);
+  const [progress, setProgress]   = useState(0);
 
-  useEffect(() => {
-    loadFiles();
-  }, []);
+  useEffect(() => { loadFiles(); }, []);
 
-  // Load all files from database
   const loadFiles = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/files');
-      const data = await response.json();
-      if (data.success) {
-        setFiles(data.files);
-      }
-    } catch (error) {
-      console.error('Error loading files:', error);
-    } finally {
-      setLoading(false);
-    }
+      const res  = await fetch('http://localhost:5001/api/files');
+      const data = await res.json();
+      if (data.success) setFiles(data.files);
+    } catch (e) { console.error(e); }
+    finally    { setLoading(false); }
   };
 
-  // Handle file upload
-  const handleFileUpload = async (selectedFiles) => {
-    if (!selectedFiles || selectedFiles.length === 0) return;
-
-    setUploading(true);
+  const handleUpload = async (selected) => {
+    if (!selected?.length) return;
+    setUploading(true); setProgress(0);
     try {
-      for (const file of selectedFiles) {
-        // Convert file to base64
-        const base64 = await fileToBase64(file);
-        
-        const response = await fetch('http://localhost:5001/api/files', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            filename: file.name,
-            mimetype: file.type,
-            size: file.size,
-            data: base64,
-          }),
+      for (let i = 0; i < selected.length; i++) {
+        const f    = selected[i];
+        const b64  = await toBase64(f);
+        const res  = await fetch('http://localhost:5001/api/files', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ filename:f.name, mimetype:f.type, size:f.size, data:b64 }),
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to upload file');
-        }
+        if (!res.ok) throw new Error('Upload failed');
+        setProgress(Math.round(((i+1)/selected.length)*100));
       }
-
-      // Reload files after upload
       await loadFiles();
-      alert('Files uploaded successfully! ✅');
-    } catch (error) {
-      console.error('Error uploading files:', error);
-      alert('Error uploading files. Please try again.');
-    } finally {
-      setUploading(false);
-    }
+    } catch (e) { alert('Upload error. Is the backend running?'); }
+    finally    { setUploading(false); setProgress(0); }
   };
 
-  // Convert file to base64
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = (error) => reject(error);
-    });
-  };
+  const toBase64 = (f) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.readAsDataURL(f);
+    r.onload  = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+  });
 
-  // Handle file input change
-  const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    handleFileUpload(selectedFiles);
-  };
+  const handleDrag = (e) => { e.preventDefault(); e.stopPropagation(); setDrag(e.type==='dragenter'||e.type==='dragover'); };
+  const handleDrop = (e) => { e.preventDefault(); e.stopPropagation(); setDrag(false); handleUpload(Array.from(e.dataTransfer.files)); };
 
-  // Handle drag and drop
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    handleFileUpload(droppedFiles);
-  };
-
-  // Download file
-  const handleDownload = async (fileId, filename) => {
+  const handleDownload = async (id, name) => {
     try {
-      const response = await fetch(`http://localhost:5001/api/files/${fileId}`);
-      const data = await response.json();
-
+      const res  = await fetch(`http://localhost:5001/api/files/${id}`);
+      const data = await res.json();
       if (data.success) {
-        // Convert base64 to blob
-        const byteCharacters = atob(data.file.data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: data.file.mimetype });
-
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        const bytes = atob(data.file.data), arr = new Uint8Array(bytes.length);
+        for (let i=0;i<bytes.length;i++) arr[i]=bytes.charCodeAt(i);
+        const url = URL.createObjectURL(new Blob([arr],{type:data.file.mimetype}));
+        const a   = Object.assign(document.createElement('a'),{href:url,download:name});
+        document.body.appendChild(a); a.click();
+        URL.revokeObjectURL(url); document.body.removeChild(a);
       }
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      alert('Error downloading file');
-    }
+    } catch { alert('Download failed'); }
   };
 
-  // Delete file
-  const handleDelete = async (fileId, filename) => {
-    if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
-
+  const handleDelete = async (id, name) => {
+    if (!confirm(`Delete "${name}"?`)) return;
     try {
-      const response = await fetch(`http://localhost:5001/api/files/${fileId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        await loadFiles();
-        alert('File deleted successfully! 🗑️');
-      }
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      alert('Error deleting file');
-    }
+      await fetch(`http://localhost:5001/api/files/${id}`,{method:'DELETE'});
+      await loadFiles();
+    } catch { alert('Delete failed'); }
   };
 
-  // Format file size
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  // Get file icon based on type
-  const getFileIcon = (mimetype) => {
-    if (mimetype.startsWith('image/')) return '🖼️';
-    if (mimetype.startsWith('video/')) return '🎥';
-    if (mimetype.startsWith('audio/')) return '🎵';
-    if (mimetype.includes('pdf')) return '📄';
-    if (mimetype.includes('word') || mimetype.includes('document')) return '📝';
-    if (mimetype.includes('sheet') || mimetype.includes('excel')) return '📊';
-    if (mimetype.includes('zip') || mimetype.includes('rar')) return '📦';
-    return '📁';
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+  if (loading) return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f0f4f8' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:'10px', color:'#64748b', fontSize:'15px', fontFamily:"'Lora', serif" }}>
+        <div style={{ width:'18px', height:'18px', border:'2px solid #cbd5e1', borderTopColor:'#3b82f6', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+        Loading files…
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Persistent File Storage</h1>
-              <p className="text-white/60 text-sm">Upload files and they'll stay forever until you delete them</p>
-            </div>
-            <div className="text-white/80 text-sm">
-              <span className="font-semibold">{files.length}</span> files stored
-            </div>
-          </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        @keyframes spin   { to { transform:rotate(360deg); } }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse  { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+        .file-row:hover   { background:#f8fafc !important; }
+        .action-btn       { transition: all 0.15s; border: none; cursor: pointer; }
+        .action-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+        .action-btn:active { transform: translateY(0); }
+        .drop-zone        { transition: all 0.2s; }
+        .drop-zone:hover  { border-color: #3b82f6 !important; background: rgba(59,130,246,0.03) !important; }
+      `}</style>
 
-          {/* Upload Area */}
-          <div
-            className={`border-2 border-dashed rounded-xl p-8 mb-6 text-center transition-colors ${
-              dragActive
-                ? 'border-blue-400 bg-blue-500/10'
-                : 'border-white/30 bg-white/5'
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
-            <div className="flex flex-col items-center gap-4">
-              <div className="text-6xl">📤</div>
-              <div>
-                <p className="text-white text-lg font-semibold mb-2">
-                  {uploading ? 'Uploading...' : 'Drop files here or click to browse'}
-                </p>
-                <p className="text-white/60 text-sm">
-                  Any file type • Any size • Multiple files supported
-                </p>
-              </div>
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileChange}
-                  className="hidden"
-                  disabled={uploading}
-                />
-                <div className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors duration-200 font-medium">
-                  {uploading ? 'Uploading...' : 'Select Files'}
+      <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#f8fafc 0%,#f0f4f8 50%,#e8eef5 100%)', padding:'40px 24px', animation:'fadeIn 0.3s ease' }}>
+        <div style={{ maxWidth:'860px', margin:'0 auto' }}>
+
+          {/* Card */}
+          <div style={{ background:'#fff', borderRadius:'16px', border:'1px solid #e2e8f0', boxShadow:'0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04)', overflow:'hidden', display:'flex', flexDirection:'column', height:'calc(100vh - 80px)' }}>
+
+            {/* Top accent */}
+            <div style={{ height:'3px', background:'linear-gradient(90deg,#3b82f6,#6366f1,#8b5cf6)' }} />
+
+            {/* Header */}
+            <div style={{ padding:'24px 28px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'12px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                <div style={{ width:'42px', height:'42px', borderRadius:'12px', background:'linear-gradient(135deg,#3b82f6,#6366f1)', display:'flex', alignItems:'center', justifyContent:'center', color:'white' }}>
+                  <Icons.Storage />
                 </div>
-              </label>
+                <div>
+                  <h1 style={{ margin:0, fontSize:'18px', fontWeight:700, color:'#0f172a', fontFamily:"'Lora',serif", letterSpacing:'-0.3px' }}>File Storage</h1>
+                  <p style={{ margin:0, fontSize:'12px', color:'#94a3b8', fontFamily:"'Lora',serif", marginTop:'2px' }}>Persistent · MongoDB backed</p>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'20px', padding:'6px 14px' }}>
+                <Icons.Files />
+                <span style={{ fontSize:'13px', color:'#475569', fontFamily:"'Lora',serif", fontWeight:600 }}>{files.length} {files.length===1?'file':'files'}</span>
+              </div>
             </div>
-          </div>
 
-          {/* Files List */}
-          {files.length === 0 ? (
-            <div className="text-center py-12 text-white/60">
-              <div className="text-6xl mb-4">📂</div>
-              <p className="text-lg">No files uploaded yet</p>
-              <p className="text-sm mt-2">Upload your first file to get started!</p>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {files.map((file) => (
-                <div
-                  key={file._id}
-                  className="bg-white/5 hover:bg-white/10 border border-white/20 rounded-lg p-4 transition-all duration-200"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="text-3xl flex-shrink-0">
-                        {getFileIcon(file.mimetype)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">
-                          {file.filename}
-                        </p>
-                        <div className="flex items-center gap-3 text-white/60 text-sm mt-1">
-                          <span>{formatFileSize(file.size)}</span>
-                          <span>•</span>
-                          <span>{new Date(file.uploadedAt).toLocaleDateString()}</span>
-                          <span>•</span>
-                          <span className="truncate">{file.mimetype}</span>
+            {/* Drop zone + file list — flex column fill */}
+            <div style={{ padding:'24px 28px 0', display:'flex', flexDirection:'column', flex:1, overflow:'hidden' }}>
+              <div
+                className="drop-zone"
+                onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+                style={{
+                  border:`2px dashed ${drag?'#3b82f6':'#e2e8f0'}`,
+                  borderRadius:'12px',
+                  padding:'36px 24px',
+                  textAlign:'center',
+                  background: drag ? 'rgba(59,130,246,0.04)' : '#fafbfc',
+                  marginBottom:'24px',
+                }}
+              >
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'12px' }}>
+                  <div style={{ color: drag?'#3b82f6':'#94a3b8', transition:'color 0.2s' }}>
+                    <Icons.CloudUp />
+                  </div>
+                  <div>
+                    <p style={{ margin:'0 0 4px', fontSize:'15px', fontWeight:600, color:'#1e293b', fontFamily:"'Lora',serif" }}>
+                      {uploading ? 'Uploading…' : 'Drop files here'}
+                    </p>
+                    <p style={{ margin:0, fontSize:'12px', color:'#94a3b8', fontFamily:"'Lora',serif" }}>
+                      Any format · Multiple files supported
+                    </p>
+                  </div>
+
+                  {/* Progress bar */}
+                  {uploading && (
+                    <div style={{ width:'200px', height:'4px', background:'#e2e8f0', borderRadius:'4px', overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:`${progress}%`, background:'linear-gradient(90deg,#3b82f6,#6366f1)', borderRadius:'4px', transition:'width 0.3s' }} />
+                    </div>
+                  )}
+
+                  <label style={{ cursor: uploading?'not-allowed':'pointer' }}>
+                    <input type="file" multiple onChange={e => handleUpload(Array.from(e.target.files))} style={{ display:'none' }} disabled={uploading} />
+                    <div style={{
+                      display:'flex', alignItems:'center', gap:'8px',
+                      padding:'9px 20px', borderRadius:'9px',
+                      background: uploading ? '#e2e8f0' : 'linear-gradient(135deg,#3b82f6,#6366f1)',
+                      color: uploading ? '#94a3b8' : '#fff',
+                      fontSize:'13px', fontWeight:600, fontFamily:"'Lora',serif",
+                      boxShadow: uploading ? 'none' : '0 2px 8px rgba(59,130,246,0.35)',
+                      transition:'all 0.2s',
+                    }}>
+                      <Icons.Upload />
+                      {uploading ? `Uploading ${progress}%…` : 'Select Files'}
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* File list — scrollable */}
+              <div style={{ flex:1, overflowY:'auto', paddingBottom:'24px' }}>
+              {files.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'48px 0', color:'#94a3b8' }}>
+                  <div style={{ color:'#cbd5e1', marginBottom:'12px' }}><Icons.Folder /></div>
+                  <p style={{ margin:0, fontSize:'15px', fontWeight:600, color:'#475569', fontFamily:"'Lora',serif" }}>No files yet</p>
+                  <p style={{ margin:'4px 0 0', fontSize:'12px', color:'#94a3b8', fontFamily:"'Lora',serif" }}>Upload your first file above</p>
+                </div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                  {files.map((f) => {
+                    const { icon, color, bg } = fileIcon(f.mimetype);
+                    return (
+                      <div key={f._id} className="file-row" style={{ display:'flex', alignItems:'center', gap:'14px', padding:'14px 16px', borderRadius:'10px', border:'1px solid #f1f5f9', background:'#fff', transition:'background 0.15s' }}>
+
+                        {/* Icon badge */}
+                        <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px', flexShrink:0 }}>
+                          {icon}
+                        </div>
+
+                        {/* Info */}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <p style={{ margin:0, fontSize:'14px', fontWeight:600, color:'#1e293b', fontFamily:"'Lora',serif", whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{f.filename}</p>
+                          <div style={{ display:'flex', gap:'12px', marginTop:'3px', flexWrap:'wrap' }}>
+                            {[fmtSize(f.size), new Date(f.uploadedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}), f.mimetype.split('/')[1]?.toUpperCase()].map((s,i) => (
+                              <span key={i} style={{ fontSize:'11px', color:'#94a3b8', fontFamily:"'JetBrains Mono',monospace" }}>{s}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display:'flex', gap:'8px', flexShrink:0 }}>
+                          <button onClick={() => handleDownload(f._id, f.filename)} className="action-btn" style={{
+                            display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px',
+                            borderRadius:'8px', background:'#f0fdf4', color:'#16a34a',
+                            fontSize:'12px', fontWeight:600, fontFamily:"'Lora',serif",
+                            border:'1px solid #bbf7d0',
+                          }}>
+                            <Icons.Download /> Download
+                          </button>
+                          <button onClick={() => handleDelete(f._id, f.filename)} className="action-btn" style={{
+                            display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px',
+                            borderRadius:'8px', background:'#fff1f2', color:'#dc2626',
+                            fontSize:'12px', fontWeight:600, fontFamily:"'Lora',serif",
+                            border:'1px solid #fecdd3',
+                          }}>
+                            <Icons.Trash /> Delete
+                          </button>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => handleDownload(file._id, file.filename)}
-                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Download
-                      </button>
-                      <button
-                        onClick={() => handleDelete(file._id, file.filename)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
+              </div>{/* end scrollable */}
             </div>
-          )}
 
-          {/* Footer Info */}
-          <div className="mt-6 pt-6 border-t border-white/20">
-            <div className="text-white/60 text-sm space-y-1">
-              <p>✨ Files are automatically saved to MongoDB</p>
-              <p>🔒 Files persist even after refresh or browser close</p>
-              <p>📥 Download any file anytime</p>
-              <p>🗑️ Only you can delete your files</p>
+            {/* Footer */}
+            <div style={{ padding:'14px 28px', borderTop:'1px solid #f1f5f9', display:'flex', gap:'20px', flexWrap:'wrap' }}>
+              {['Auto-saved to MongoDB','Persists after refresh','Secure download anytime'].map(s => (
+                <span key={s} style={{ fontSize:'11px', color:'#94a3b8', fontFamily:"'Lora',serif" }}>✦ {s}</span>
+              ))}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
