@@ -38,6 +38,10 @@ export default function ChatRoom() {
       socketRef.current.emit('join-room', params.roomId);
       socketRef.current.emit('user-online', { userId, roomId: params.roomId });
     });
+    // ✅ YEH ADD KARO
+    socketRef.current.on('online-users-list', (users) => {
+      setOnlineUsers(new Set(users));
+    });
     socketRef.current.on('new-message', (data) => {
       const message = data.message || data;
       if (message?._id && message?.sender?._id)
@@ -122,7 +126,7 @@ export default function ChatRoom() {
       <div className="flex-shrink-0 shadow-md" style={{ background: 'linear-gradient(90deg, #0ea5e9 0%, #e8508a 60%, #f97316 100%)' }}>
         <div className="flex items-center justify-between px-5 py-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.push('/')} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 text-white transition">
+            <button onClick={() => router.push('/msg')} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 text-white transition">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>

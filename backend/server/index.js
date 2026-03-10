@@ -32,16 +32,32 @@ const onlineUsers = new Map(); // userId -> socketId
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  /* JOIN ROOM */
-  socket.on("join-room", (roomId) => {
-    socket.join(roomId);
-    console.log(`User joined room: ${roomId}`);
-  });
+  // /* JOIN ROOM */
+  // socket.on("join-room", (roomId) => {
+  //   socket.join(roomId);
+  //   console.log(`User joined room: ${roomId}`);
+  // });
 
-  /* SEND MESSAGE */
-  socket.on("send-message", (data) => {
-    socket.broadcast.to(data.roomId).emit("new-message", data);
-  });
+  // /* SEND MESSAGE */
+  // socket.on("send-message", (data) => {
+  //   socket.broadcast.to(data.roomId).emit("new-message", data);
+  // });
+  /* JOIN ROOM */
+socket.on("join-room", (roomId) => {
+  socket.join(roomId);
+  
+  // ✅ Naye user ko existing online users ki list bhejo
+  const onlineInRoom = [];
+  for (const [userId, socketId] of onlineUsers.entries()) {
+    const memberSocket = io.sockets.sockets.get(socketId);
+    if (memberSocket && memberSocket.rooms.has(roomId)) {
+      onlineInRoom.push(userId);
+    }
+  }
+  socket.emit("online-users-list", onlineInRoom);
+  
+  console.log(`User joined room: ${roomId}`);
+});
 
   /* =========================================
      ✅ USER ONLINE
